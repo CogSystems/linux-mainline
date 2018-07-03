@@ -60,3 +60,5 @@ js-rtc-y = rtc.o
 obj-$(CONFIG_TILE_SROM)		+= tile-srom.o
 obj-$(CONFIG_XILLYBUS)		+= xillybus/
 obj-$(CONFIG_POWERNV_OP_PANEL)	+= powernv-op-panel.o
+obj-$(CONFIG_OKL4_PIPE)		+= okl4_pipe.o
+CFLAGS_okl4_pipe.o			+= -Werror
