@@ -20,6 +20,10 @@
 #include <asm/spinlock_types.h>
 #include <asm/processor.h>
 
+#ifdef CONFIG_OKL4_PARAVIRTUALISED_SPINLOCKS
+#include <asm/okl4_spinlock.h>
+#else
+
 /*
  * Spinlock implementation.
  *
@@ -312,5 +316,7 @@ static inline int arch_read_trylock(arch_rwlock_t *rw)
 
 /* See include/linux/spinlock.h */
 #define smp_mb__after_spinlock()	smp_mb()
+
+#endif
 
 #endif /* __ASM_SPINLOCK_H */
