@@ -47,6 +47,8 @@ static int __init rtc_hctosys(void)
 
 	}
 
+	rtc_update_slaves(rtc, &tm);
+
 	tv64.tv_sec = rtc_tm_to_time64(&tm);
 
 #if BITS_PER_LONG == 32

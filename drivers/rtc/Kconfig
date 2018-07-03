@@ -1797,4 +1797,12 @@ config RTC_DRV_GOLDFISH
 	  Goldfish is a code name for the virtual platform developed by Google
 	  for Android emulation.
 
+config OKL4_RTC
+	tristate "OKL4 hypervisor KSP RTC"
+	depends on OKL4_GUEST
+	default n
+	---help---
+	  This device provides read-write access to the virtual RTC provided
+	  by the OKL4 hypevisor's KSP RTC API.
+
 endif # RTC_CLASS
