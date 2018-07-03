@@ -98,3 +98,6 @@ obj-$(CONFIG_X86)			+= x86/
 endif
 obj-$(CONFIG_ARCH_ZX)			+= zte/
 obj-$(CONFIG_ARCH_ZYNQ)			+= zynq/
+ifeq ($(CONFIG_OF),y)
+obj-$(CONFIG_OKL4_GUEST)        += microvisor_of_clk.o
+endif
