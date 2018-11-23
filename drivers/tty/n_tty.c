@@ -758,7 +758,6 @@ static size_t __process_echoes(struct tty_struct *tty)
 #if defined(CONFIG_TTY_FLUSH_LOCAL_ECHO)
 	if (MASK(ldata->echo_commit) != MASK(tail)) {
 		if (!tty->delayed_work) {
-			INIT_DELAYED_WORK(&tty->echo_delayed_work, continue_process_echoes);
 			schedule_delayed_work(&tty->echo_delayed_work, 1);
 		}
 		tty->delayed_work = 1;
@@ -1906,6 +1905,10 @@ static void n_tty_close(struct tty_struct *tty)
 	if (tty->link)
 		n_tty_packet_mode_flush(tty);
 
+#if defined(CONFIG_TTY_FLUSH_LOCAL_ECHO)
+	cancel_delayed_work_sync(&tty->echo_delayed_work);
+#endif
+
 	vfree(ldata);
 	tty->disc_data = NULL;
 }
@@ -1935,6 +1938,9 @@ static int n_tty_open(struct tty_struct *tty)
 
 	tty->disc_data = ldata;
 	tty->closing = 0;
+#if defined(CONFIG_TTY_FLUSH_LOCAL_ECHO)
+	INIT_DELAYED_WORK(&tty->echo_delayed_work, continue_process_echoes);
+#endif
 	/* indicate buffer work may resume */
 	clear_bit(TTY_LDISC_HALTED, &tty->flags);
 	n_tty_set_termios(tty, NULL);
