@@ -388,7 +388,11 @@ static void *axon_dma_alloc(struct device *dev, size_t size,
 	struct page *page;
 	void *ptr;
 
+#ifdef DMA_ERROR_CODE
 	*handle = DMA_ERROR_CODE;
+#else
+	*handle = 0;
+#endif
 	size = PAGE_ALIGN(size);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0)
@@ -402,8 +406,11 @@ static void *axon_dma_alloc(struct device *dev, size_t size,
 	count = size >> PAGE_SHIFT;
 
 	if (dev_get_cma_area(dev)) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
+		page = dma_alloc_from_contiguous(dev, count, order, gfp);
+#else
 		page = dma_alloc_from_contiguous(dev, count, order);
-
+#endif
 		if (!page)
 			return NULL;
 	} else {
@@ -3171,7 +3178,11 @@ static int transport_axon_probe(struct platform_device *dev)
 	}
 
 	dev->dev.coherent_dma_mask = ~(u64)0;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
+	dev->dev.dma_ops = &axon_dma_ops;
+#else
 	dev->dev.archdata.dma_ops = &axon_dma_ops;
+#endif
 
 	priv = devm_kzalloc(&dev->dev, sizeof(struct vs_transport_axon) +
 			sizeof(unsigned long), GFP_KERNEL);

@@ -16,7 +16,9 @@
 
 #include <linux/sched.h>
 #include <linux/wait.h>
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+#include <linux/sched/signal.h>
+#endif
 #include <vservices/service.h>
 
 /* Older kernels don't have lockdep_assert_held_once(). */

@@ -1148,6 +1148,19 @@ static void service_rx_work(struct work_struct *work)
  * Service sysfs statistics counters. These files are all atomic_t, and
  * read only, so we use a generator macro to avoid code duplication.
  */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
+#define service_stat_attr(__name)					\
+	static ssize_t __name##_show(struct device *dev, \
+			struct device_attribute *attr, char *buf)       \
+	{                                                               \
+		struct vs_service_device *service =                     \
+				to_vs_service_device(dev);              \
+									\
+		return sprintf(buf, "%u\n",				\
+				atomic_read(&service->stats.__name));	\
+	}                                                               \
+	static DEVICE_ATTR_RO(__name)
+#else
 #define service_stat_attr(__name)					\
 	static ssize_t service_stat_##__name##_show(struct device *dev, \
 			struct device_attribute *attr, char *buf)       \
@@ -1160,7 +1173,7 @@ static void service_rx_work(struct work_struct *work)
 	}                                                               \
 	static DEVICE_ATTR(__name, S_IRUGO,                             \
 			service_stat_##__name##_show, NULL);
-
+#endif
 service_stat_attr(sent_mbufs);
 service_stat_attr(sent_bytes);
 service_stat_attr(recv_mbufs);
@@ -2371,6 +2384,9 @@ static ssize_t id_show(struct device *dev,
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", session->session_num);
 }
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
+static DEVICE_ATTR_RO(id);
+#endif
 
 /*
  * The vServices session device type
@@ -2382,6 +2398,9 @@ static ssize_t is_server_show(struct device *dev,
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", session->is_server);
 }
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
+static DEVICE_ATTR_RO(is_server);
+#endif
 
 static ssize_t name_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -2390,6 +2409,9 @@ static ssize_t name_show(struct device *dev,
 
 	return scnprintf(buf, PAGE_SIZE, "%s\n", session->name);
 }
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
+static DEVICE_ATTR_RO(name);
+#endif
 
 #ifdef CONFIG_VSERVICES_DEBUG
 static ssize_t debug_mask_show(struct device *dev,
@@ -2415,8 +2437,24 @@ static ssize_t debug_mask_store(struct device *dev,
 
 	return count;
 }
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
+static DEVICE_ATTR_RW(debug_mask);
+#endif
+
 #endif /* CONFIG_VSERVICES_DEBUG */
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
+static struct attribute *vservices_session_dev_attrs[] = {
+	&dev_attr_id.attr,
+	&dev_attr_is_server.attr,
+	&dev_attr_name.attr,
+#ifdef CONFIG_VSERVICES_DEBUG
+	&dev_attr_debug_mask.attr,
+#endif
+	NULL,
+};
+ATTRIBUTE_GROUPS(vservices_session_dev);
+#else
 static struct device_attribute vservices_session_dev_attrs[] = {
 	__ATTR_RO(id),
 	__ATTR_RO(is_server),
@@ -2427,6 +2465,7 @@ static struct device_attribute vservices_session_dev_attrs[] = {
 #endif
 	__ATTR_NULL,
 };
+#endif
 
 static int vs_session_free_idr(struct vs_session_device *session)
 {
@@ -2522,7 +2561,11 @@ struct bus_type vs_session_bus_type = {
 	.name		= "vservices-session",
 	.match		= vs_session_bus_match,
 	.remove		= vs_session_bus_remove,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
+	.dev_groups	= vservices_session_dev_groups,
+#else
 	.dev_attrs	= vservices_session_dev_attrs,
+#endif
 	.uevent		= vservices_session_uevent,
 	.shutdown	= vservices_session_shutdown,
 };

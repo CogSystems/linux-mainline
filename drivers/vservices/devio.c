@@ -34,6 +34,9 @@
 #include <vservices/service.h>
 #include <vservices/ioctl.h>
 #include "session.h"
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+#include <linux/sched/signal.h>
+#endif
 
 #define VSERVICES_DEVICE_MAX (VS_MAX_SERVICES * VS_MAX_SESSIONS)
 
