@@ -31,6 +31,7 @@
 #include <linux/version.h>
 #include <microvisor/microvisor.h>
 #include <uapi/linux/okl4-link-shbuf.h>
+#include <asm-generic/okl4_virq.h>
 
 static const char DEVICE_NAME[] = "okl4_link_shbuf";
 
@@ -341,7 +342,6 @@ static const struct file_operations link_shbuf_ops = {
 static irqreturn_t link_shbuf_irq_handler(int irq, void *data)
 {
 	u64 payload, old, new;
-	struct _okl4_sys_interrupt_get_payload_return _payload;
 
 	/* Retrieve a pointer to our private data. */
 	struct link_shbuf_data *priv = data;
@@ -355,8 +355,7 @@ static irqreturn_t link_shbuf_irq_handler(int irq, void *data)
 	if (WARN_ON(priv->virq < 0 || priv->virq != irq))
 		return IRQ_NONE;
 
-	_payload = _okl4_sys_interrupt_get_payload(irq);
-	payload = (u64)_payload.payload;
+	payload = (u64)okl4_get_virq_payload(irq);
 
 	/*
 	 * At this point, it is possible the pending flag is already set. It is up to

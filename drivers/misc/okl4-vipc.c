@@ -28,6 +28,7 @@
 #include <linux/ioport.h>
 #include <linux/of_address.h>
 #include <linux/mm.h>
+#include <asm-generic/okl4_virq.h>
 
 /* Linux version compatibility */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,11,0)
@@ -77,11 +78,8 @@ struct okl4_vipc_device {
 static irqreturn_t okl4_virq_handler(int irq, void *dev_id)
 {
 	struct okl4_vipc_device *dev = dev_id;
-	unsigned long payload;
-	struct _okl4_sys_interrupt_get_payload_return _payload =
-		_okl4_sys_interrupt_get_payload(irq);
+	unsigned long payload = okl4_get_virq_payload(irq);
 
-	payload = _payload.payload;
 	dev->virq.payload |= payload;
 	smp_wmb();
 	dev->virq.raised = true;
