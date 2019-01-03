@@ -5,6 +5,7 @@
 if VSERVICES_SERVER || VSERVICES_CLIENT
 
 menu "Protocol drivers"
+
 config VSERVICES_PROTOCOL_BLOCK
 	bool
 
@@ -21,6 +22,25 @@ config VSERVICES_PROTOCOL_BLOCK_CLIENT
 	select VSERVICES_PROTOCOL_BLOCK
 	help
 	  This option adds support for Virtual Services block protocol client.
+
+config VSERVICES_PROTOCOL_ETHERNET
+	bool
+
+config VSERVICES_PROTOCOL_ETHERNET_SERVER
+	tristate "Ethernet server protocol"
+	depends on VSERVICES_SUPPORT && VSERVICES_SERVER
+	select VSERVICES_PROTOCOL_ETHERNET
+	help
+	  This option adds support for the Virtual Services Ethernet protocol
+	  server.
+
+config VSERVICES_PROTOCOL_ETHERNET_CLIENT
+	tristate "Ethernet client protocol"
+	depends on VSERVICES_SUPPORT && VSERVICES_CLIENT
+	select VSERVICES_PROTOCOL_ETHERNET
+	help
+	  This option adds support for Virtual Services Ethernet protocol
+	  client.
 
 config VSERVICES_PROTOCOL_SERIAL
 	bool
