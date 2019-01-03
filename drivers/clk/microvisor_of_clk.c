@@ -70,7 +70,7 @@ int __init okl4_prepare_clocks(void)
 
 	return 0;
 }
-early_initcall(okl4_prepare_clocks);
+subsys_initcall(okl4_prepare_clocks);
 
 int __init okl4_prepare_clocks_late(void)
 {
