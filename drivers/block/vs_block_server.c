@@ -547,7 +547,9 @@ static void vs_block_server_read_done(struct bio *bio)
 #endif
 {
 	unsigned long flags;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+	int err = blk_status_to_errno(bio->bi_status);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
 	int err = bio->bi_error;
 #endif
 	struct block_server_request *req = container_of(bio,
@@ -622,7 +624,10 @@ static int vs_block_submit_read(struct block_server *server,
 	}
 
 	if (err) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+		bio->bi_status = err;
+		bio_endio(bio);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
 		bio->bi_error = err;
 		bio_endio(bio);
 #else
@@ -689,7 +694,11 @@ static int vs_block_server_io_req_read(struct vs_server_block_state *state,
 #else
 	bio->bi_sector = (sector_t)sector_index;
 #endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
+	bio_set_dev(bio, server->bdev);
+#else
 	bio->bi_bdev = server->bdev;
+#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0)
 	bio_set_op_attrs(bio, REQ_OP_READ, op_flags);
 #else
@@ -703,7 +712,10 @@ static int vs_block_server_io_req_read(struct vs_server_block_state *state,
 		/* Fall back to a bounce buffer */
 		req->mbuf = NULL;
 	} else if (IS_ERR(req->mbuf)) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+		bio->bi_status = PTR_ERR(req->mbuf);
+		bio_endio(bio);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
 		bio->bi_error = PTR_ERR(req->mbuf);
 		bio_endio(bio);
 #else
@@ -786,7 +798,9 @@ static void vs_block_server_write_done(struct bio *bio)
 #endif
 {
 	unsigned long flags;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+	int err = blk_status_to_errno(bio->bi_status);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
 	int err = bio->bi_error;
 #endif
 	struct block_server_request *req = container_of(bio,
@@ -864,7 +878,11 @@ static int vs_block_server_io_req_write(struct vs_server_block_state *state,
 #else
 	bio->bi_sector = (sector_t)sector_index;
 #endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
+	bio_set_dev(bio, server->bdev);
+#else
 	bio->bi_bdev = server->bdev;
+#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0)
 	bio_set_op_attrs(bio, REQ_OP_WRITE, op_flags);
 #else
@@ -935,7 +953,10 @@ static int vs_block_server_io_req_write(struct vs_server_block_state *state,
 	return 0;
 
 fail_bio:
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+	bio->bi_status = err;
+	bio_endio(bio);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
 	bio->bi_error = err;
 	bio_endio(bio);
 #else
@@ -1104,7 +1125,11 @@ vs_block_server_alloc(struct vs_service_device *service)
 	server->bioset = bioset_create(min_t(unsigned, service->recv_quota,
 				VSERVICE_BLOCK_IO_READ_MAX_PENDING +
 				VSERVICE_BLOCK_IO_WRITE_MAX_PENDING),
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
+			offsetof(struct block_server_request, bio), BIOSET_NEED_BVECS);
+#else
 			offsetof(struct block_server_request, bio));
+#endif
 	if (!server->bioset) {
 		dev_err(&service->dev,
 			"Failed to allocate bioset for service %s\n",

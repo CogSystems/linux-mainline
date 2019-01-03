@@ -56,6 +56,25 @@
 #define bio_size(bio) (bio)->bi_size
 #endif
 
+/*
+ * bio_flags was added in 4.9 and removed in 4.10, but it has also been removed
+ * from 4.9.imx8.
+ * bi_rw was renamed to bi_opf in 4.8.
+ * REQ_FLUSH was renamed to REQ_PREFLUSH in 4.8
+ */
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,8,0)
+#define REQ_PREFLUSH REQ_FLUSH
+#endif
+
+#if !defined(bio_flags)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,8,0)
+#define bio_flags(bio) bio->bi_rw
+#else
+#define bio_flags(bio) bio->bi_opf
+#endif
+#endif
+
 #define CLIENT_BLKDEV_NAME		"vblock"
 
 #define PERDEV_MINORS 256
@@ -353,15 +372,10 @@ static int block_client_send_write_req(struct block_client *client,
 		err = -EIO;
 		goto fail_free_write;
 	}
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+
 	flush = (bio_flags(bio) & REQ_PREFLUSH);
 	commit = (bio_flags(bio) & REQ_FUA);
 	nodelay = (bio_flags(bio) & REQ_SYNC);
-#else
-	flush = (bio->bi_rw & REQ_FLUSH);
-	commit = (bio->bi_rw & REQ_FUA);
-	nodelay = (bio->bi_rw & REQ_SYNC);
-#endif
 	err = vs_client_block_io_req_write(state, bio, bio_sector(bio),
 			bio_sectors(bio), nodelay, flush, commit, pbuf, mbuf);
 
@@ -389,13 +403,8 @@ static int block_client_send_read_req(struct block_client *client,
 	err = vs_block_client_check_sector_size(client, bio);
 	if (err < 0)
 		return err;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
 	flush = (bio_flags(bio) & REQ_PREFLUSH);
 	nodelay = (bio_flags(bio) & REQ_SYNC);
-#else
-	flush = (bio->bi_rw & REQ_FLUSH);
-	nodelay = (bio->bi_rw & REQ_SYNC);
-#endif
 	do {
 		/* Wait until it's possible to send a read request */
 		err = vs_wait_state_nointr(state,
@@ -423,8 +432,12 @@ static void
 #endif
 vs_block_client_make_request(struct request_queue *q, struct bio *bio)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
+	struct vs_block_device *blkdev = bio->bi_disk->private_data;
+#else
 	struct block_device *bdev = bio->bi_bdev;
 	struct vs_block_device *blkdev = bdev->bd_disk->private_data;
+#endif
 	struct block_client *client;
 	int err = 0;
 
@@ -434,7 +447,9 @@ vs_block_client_make_request(struct request_queue *q, struct bio *bio)
 		goto fail_get_client;
 	}
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+	blk_queue_split(q, &bio);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
 	blk_queue_split(q, &bio, q->bio_split);
 #endif
 
@@ -462,7 +477,13 @@ fail_check_client:
 fail_lock_client:
 	vs_block_client_put(client);
 fail_get_client:
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+	if (err < 0) {
+		bio->bi_status = err;
+		bio_endio(bio);
+	}
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
 	if (err < 0) {
 		bio->bi_error = err;
 		bio_endio(bio);
@@ -811,7 +832,11 @@ static int vs_block_client_ack_read(struct vs_client_block_state *state,
 
 	vs_client_block_io_free_ack_read(state, &pbuf, mbuf);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+	if (err < 0)
+		bio->bi_status = err;
+	bio_endio(bio);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
 	if (err < 0)
 		bio->bi_error = err;
 	bio_endio(bio);
@@ -893,7 +918,10 @@ static int vs_block_client_nack_io(struct vs_client_block_state *state,
 	if (WARN_ON(!bio))
 		return -EPROTO;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+	bio->bi_status = block_client_vs_to_linux_error(err);
+	bio_endio(bio);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
 	bio->bi_error = block_client_vs_to_linux_error(err);
 	bio_endio(bio);
 #else
