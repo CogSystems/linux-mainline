@@ -1798,11 +1798,10 @@ config RTC_DRV_GOLDFISH
 	  for Android emulation.
 
 config OKL4_RTC
-	tristate "OKL4 hypervisor KSP RTC"
+	tristate "Virtual RTC on the OKL4 Microvisor"
 	depends on OKL4_GUEST
 	default n
 	---help---
-	  This device provides read-write access to the virtual RTC provided
-	  by the OKL4 hypevisor's KSP RTC API.
+	  This device provides read-write access to the virtual RTC.
 
 endif # RTC_CLASS
